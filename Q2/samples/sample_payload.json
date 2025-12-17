@@ -1,0 +1,10 @@
+{
+  "title": "Podcast 企劃會議紀要",
+  "content": "主持人：Amber。今日確認 podcast S3 第一集來賓為 Fintopia 創辦人，5/20 要交腳本給合作夥伴。Q&A 需要英文翻譯，請幫我總結並整理代辦。",
+  "language": "zh",
+  "target_language": "en",
+  "tone": "專業但有溫度",
+  "notify_channel": "webhook",
+  "email": "amber@example.com",
+  "source": "notion-form"
+}

@@ -1,0 +1,371 @@
+{
+  "name": "HW5 Q2 — AIOT n8n Workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "7c11eb6b-872a-4c15-86d9-ad5c74dc1f5f",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        -60
+      ]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "values": {
+          "string": [
+            {
+              "name": "title",
+              "value": "Podcast 會議摘要"
+            },
+            {
+              "name": "content",
+              "value": "主持人 Amber 與 BD 討論 S3 EP1，邀請 Fintopia 創辦人錄製訪談；產出腳本 deadline 為 5/20，推播語氣要親切。"
+            },
+            {
+              "name": "language",
+              "value": "zh"
+            },
+            {
+              "name": "target_language",
+              "value": "en"
+            },
+            {
+              "name": "tone",
+              "value": "專業且溫暖"
+            },
+            {
+              "name": "notify_channel",
+              "value": "webhook"
+            },
+            {
+              "name": "email",
+              "value": "team@example.com"
+            },
+            {
+              "name": "source",
+              "value": "manual-test"
+            }
+          ]
+        }
+      },
+      "id": "92b79736-c7ff-4e7c-8292-416dad74f7bd",
+      "name": "Sample Payload",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        500,
+        -60
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "aiot-hw5-q2-ai-agent",
+        "responseMode": "responseNode",
+        "responseNodeName": "Respond to Webhook",
+        "options": {
+          "responseContentType": "application/json"
+        }
+      },
+      "id": "3f92968e-548f-46a3-a6bc-a6abb5419128",
+      "name": "AIOT HW5 Q2 Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        240,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const results = [];\nfor (const item of items) {\n    const payload = item.json.body ?? item.json;\n    const text = (payload.content ?? payload.text ?? '').trim();\n    if (!text) {\n        throw new Error('Payload must include a non-empty `content` field.');\n    }\n    const language = (payload.language ?? 'zh').toLowerCase();\n    const targetLanguage = payload.target_language ?? (language === 'zh' ? 'en' : 'zh');\n    results.push({\n        json: {\n            title: payload.title ?? 'Untitled request',\n            content: text,\n            language,\n            target_language: targetLanguage,\n            tone: payload.tone ?? '專業且親切',\n            notify_channel: payload.notify_channel ?? 'webhook',\n            email: payload.email ?? '',\n            source: payload.source ?? 'webhook',\n            created_at: new Date().toISOString(),\n            tags: payload.tags ?? [],\n            metadata: payload.metadata ?? {}\n        }\n    });\n}\nreturn results;"
+      },
+      "id": "6120fd05-978f-4a74-86c6-a3d0c7ac7afe",
+      "name": "Prepare Input",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        820,
+        60
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.openai.com/v1/chat/completions",
+        "method": "POST",
+        "sendBody": true,
+        "jsonParameters": true,
+        "responseFormat": "json",
+        "bodyParametersJson": "={\"model\":\"gpt-4o-mini\",\"temperature\":0.2,\"response_format\":{\"type\":\"json_object\"},\"messages\":[{\"role\":\"system\",\"content\":\"You are a bilingual executive assistant that summarizes meetings, extracts next steps, proposes tone guidance, produces bilingual hashtags, and translates content. Always respond with valid JSON object: {\\\"summary\\\": string, \\\"translation\\\": string (in the requested target language), \\\"action_items\\\": [string], \\\"hashtags\\\": [string starting with #], \\\"key_points\\\": [string], \\\"tone\\\": string}.\"},{\"role\":\"user\",\"content\":\"Title: {{$json[\\\"title\\\"]}}\\nSource: {{$json[\\\"source\\\"]}}\\nOriginal language: {{$json[\\\"language\\\"]}}\\nTarget language: {{$json[\\\"target_language\\\"]}}\\nPreferred tone: {{$json[\\\"tone\\\"]}}\\n---\\n{{$json[\\\"content\\\"]}}\"}]}",
+        "headerParametersJson": "={\"Content-Type\":\"application/json\",\"Authorization\":\"Bearer {{$env.OPENAI_API_KEY}}\"}",
+        "options": {
+          "responsePropertyName": "llm_summary"
+        }
+      },
+      "id": "095e12d4-212a-4266-8c6b-64d6e538d7c3",
+      "name": "Summarize & Translate (OpenAI)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1080,
+        60
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const results = [];\nfor (const item of items) {\n    const payload = { ...item.json };\n    const summaryResponse = payload.llm_summary ?? {};\n    const content = summaryResponse.choices?.[0]?.message?.content ?? '{}';\n    let parsed;\n    try {\n        parsed = JSON.parse(content);\n    } catch (error) {\n        throw new Error('Unable to parse summary JSON from OpenAI: ' + error.message);\n    }\n    delete payload.llm_summary;\n    results.push({\n        json: {\n            ...payload,\n            summary: parsed.summary ?? '',\n            translation: parsed.translation ?? '',\n            action_items: parsed.action_items ?? [],\n            hashtags: parsed.hashtags ?? [],\n            key_points: parsed.key_points ?? [],\n            tone_suggestion: parsed.tone ?? payload.tone\n        }\n    });\n}\nreturn results;"
+      },
+      "id": "f7e60a92-8315-47eb-a441-e9469436fdc3",
+      "name": "Parse Summary",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1340,
+        60
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.openai.com/v1/chat/completions",
+        "method": "POST",
+        "sendBody": true,
+        "jsonParameters": true,
+        "responseFormat": "json",
+        "bodyParametersJson": "={\"model\":\"gpt-4o-mini\",\"temperature\":0.4,\"response_format\":{\"type\":\"json_object\"},\"messages\":[{\"role\":\"system\",\"content\":\"You craft short, friendly yet professional replies. Return JSON with keys reply_text (markdown), subject_line, microcopy (<=80 chars tagline).\"},{\"role\":\"user\",\"content\":\"Draft a response in {{$json[\\\"language\\\"]}} using this tone: {{$json[\\\"tone\\\"]}}. Reference the summary, key points and action list below to sound specific.\\nSummary: {{$json[\\\"summary\\\"]}}\\nKey points: {{$json[\\\"key_points\\\"]}}\\nAction items: {{$json[\\\"action_items\\\"]}}\\nProvide a sentence that reassures the sender we captured next steps.\"},{\"role\":\"user\",\"content\":\"Also share an English microcopy tagline even if the reply is not English.\"}]}",
+        "headerParametersJson": "={\"Content-Type\":\"application/json\",\"Authorization\":\"Bearer {{$env.OPENAI_API_KEY}}\"}",
+        "options": {
+          "responsePropertyName": "llm_reply"
+        }
+      },
+      "id": "655cc9eb-a7df-4292-8bc5-579a6057675a",
+      "name": "Compose Reply (OpenAI)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1600,
+        60
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const results = [];\nfor (const item of items) {\n    const payload = { ...item.json };\n    const replyResponse = payload.llm_reply ?? {};\n    const content = replyResponse.choices?.[0]?.message?.content ?? '{}';\n    let parsed;\n    try {\n        parsed = JSON.parse(content);\n    } catch (error) {\n        throw new Error('Unable to parse reply JSON from OpenAI: ' + error.message);\n    }\n    delete payload.llm_reply;\n    results.push({\n        json: {\n            ...payload,\n            reply_text: parsed.reply_text ?? '',\n            subject_line: parsed.subject_line ?? '',\n            microcopy: parsed.microcopy ?? ''\n        }\n    });\n}\nreturn results;"
+      },
+      "id": "a87c57f8-0254-40b0-93ff-4703356bf933",
+      "name": "Extract Reply",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1860,
+        60
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const results = [];\nfor (const item of items) {\n    const hashtags = (item.json.hashtags ?? []).map(tag => tag.replace('#', '').trim()).filter(Boolean);\n    const actionItems = item.json.action_items ?? [];\n    const notionDatabaseId = process.env.NOTION_DATABASE_ID || 'YOUR_NOTION_DATABASE_ID';\n    const summaryBlocks = [\n        {\n            object: 'block',\n            type: 'heading_2',\n            heading_2: { rich_text: [{ type: 'text', text: { content: 'AI Summary' } }] }\n        },\n        {\n            object: 'block',\n            type: 'paragraph',\n            paragraph: { rich_text: [{ type: 'text', text: { content: item.json.summary || 'N/A' } }] }\n        },\n        {\n            object: 'block',\n            type: 'heading_2',\n            heading_2: { rich_text: [{ type: 'text', text: { content: 'Action Items' } }] }\n        }\n    ];\n    for (const action of actionItems) {\n        summaryBlocks.push({\n            object: 'block',\n            type: 'to_do',\n            to_do: {\n                rich_text: [{ type: 'text', text: { content: action } }],\n                checked: false\n            }\n        });\n    }\n    summaryBlocks.push({\n        object: 'block',\n        type: 'heading_2',\n        heading_2: { rich_text: [{ type: 'text', text: { content: 'English Translation' } }] }\n    });\n    summaryBlocks.push({\n        object: 'block',\n        type: 'paragraph',\n        paragraph: { rich_text: [{ type: 'text', text: { content: item.json.translation || 'N/A' } }] }\n    });\n    const notionPayload = {\n        parent: {\n            database_id: notionDatabaseId\n        },\n        properties: {\n            Name: {\n                title: [\n                    {\n                        text: {\n                            content: `${item.json.title} (${new Date(item.json.created_at).toLocaleString('sv')})`\n                        }\n                    }\n                ]\n            },\n            Source: {\n                rich_text: [\n                    {\n                        text: {\n                            content: item.json.source\n                        }\n                    }\n                ]\n            },\n            Tags: {\n                multi_select: hashtags.map(name => ({ name }))\n            }\n        },\n        children: summaryBlocks\n    };\n    results.push({\n        json: {\n            ...item.json,\n            notion_payload: notionPayload\n        }\n    });\n}\nreturn results;"
+      },
+      "id": "6622b1dc-02ab-4d97-b1cf-b7cda941348b",
+      "name": "Build Notion Payload",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        2120,
+        40
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.notion.com/v1/pages",
+        "method": "POST",
+        "sendBody": true,
+        "jsonParameters": true,
+        "responseFormat": "json",
+        "bodyParametersJson": "={{JSON.stringify($json[\"notion_payload\"])}}",
+        "headerParametersJson": "={\"Content-Type\":\"application/json\",\"Notion-Version\":\"2022-06-28\",\"Authorization\":\"Bearer {{$env.NOTION_API_KEY}}\"}",
+        "options": {
+          "responsePropertyName": "notion_result",
+          "ignoreResponseCode": true
+        }
+      },
+      "id": "83986dbb-4324-4a0a-8f8e-c734646984de",
+      "name": "Create Notion Page",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        2380,
+        40
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "return items.map(item => ({\n    json: {\n        title: item.json.title,\n        summary: item.json.summary,\n        translation: item.json.translation,\n        action_items: item.json.action_items,\n        hashtags: item.json.hashtags,\n        ai_reply: item.json.reply_text,\n        subject_line: item.json.subject_line,\n        microcopy: item.json.microcopy,\n        notion_page_id: item.json.notion_result?.id ?? null,\n        created_at: item.json.created_at,\n        source: item.json.source\n    }\n}));"
+      },
+      "id": "1acd471e-5e42-45ed-9c78-8eefb0b23aaa",
+      "name": "Assemble Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        2640,
+        40
+      ]
+    },
+    {
+      "parameters": {
+        "responseCode": 200,
+        "responseBody": "={{$json}}",
+        "options": {
+          "responseContentType": "application/json"
+        }
+      },
+      "id": "9ab15caf-e0a6-4ce5-be15-a5487c888273",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        2900,
+        40
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Sample Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sample Payload": {
+      "main": [
+        [
+          {
+            "node": "Prepare Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AIOT HW5 Q2 Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prepare Input",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Prepare Input": {
+      "main": [
+        [
+          {
+            "node": "Summarize & Translate (OpenAI)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarize & Translate (OpenAI)": {
+      "main": [
+        [
+          {
+            "node": "Parse Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Summary": {
+      "main": [
+        [
+          {
+            "node": "Compose Reply (OpenAI)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compose Reply (OpenAI)": {
+      "main": [
+        [
+          {
+            "node": "Extract Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Reply": {
+      "main": [
+        [
+          {
+            "node": "Build Notion Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Notion Payload": {
+      "main": [
+        [
+          {
+            "node": "Create Notion Page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Notion Page": {
+      "main": [
+        [
+          {
+            "node": "Assemble Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Assemble Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Asia/Taipei"
+  },
+  "versionId": "1584c9a3-e41c-4668-ba83-0a6128a15cee",
+  "id": "f902b353-fb69-49c7-ae93-071f50475550",
+  "tags": [
+    {
+      "name": "aiot_hw5"
+    },
+    {
+      "name": "automation"
+    }
+  ]
+}
