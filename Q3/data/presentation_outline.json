@@ -1,0 +1,98 @@
+{
+  "project": {
+    "name": "AIOT Smart Campus Initiative",
+    "subtitle": "Digitizing campus operations with AI-native automation",
+    "tagline": "Internal pilot report — Q3 2025"
+  },
+  "slides": [
+    {
+      "type": "title",
+      "title": "AIOT Smart Campus Initiative",
+      "subtitle": "From reactive maintenance to predictive automation",
+      "badge": "Internal Pilot"
+    },
+    {
+      "type": "bullets",
+      "title": "Agenda",
+      "description": "The pilot deck recaps the journey from discovery to activation.",
+      "bullets": [
+        "Vision and guiding principles",
+        "Service blueprint & architecture",
+        "Pilot learnings and KPIs",
+        "Next steps toward expansion"
+      ]
+    },
+    {
+      "type": "split_highlight",
+      "title": "Why now?",
+      "left": {
+        "heading": "Operational pains",
+        "items": [
+          "Reactive maintenance windows",
+          "Siloed building data",
+          "Manual triage creates 48h lag"
+        ]
+      },
+      "right": {
+        "heading": "Opportunity",
+        "items": [
+          "Sensor density + LTE coverage",
+          "Campus AI governance ready",
+          "Leadership mandate for 20% savings"
+        ]
+      }
+    },
+    {
+      "type": "architecture",
+      "title": "Service blueprint",
+      "description": "AI orchestrates sense → decide → act loops across facilities.",
+      "nodes": [
+        {
+          "name": "Edge sensing",
+          "detail": "LoRaWAN and BLE pucks capture HVAC, occupancy, power"
+        },
+        {
+          "name": "Event fabric",
+          "detail": "MQTT + Azure Event Grid normalize telemetry"
+        },
+        {
+          "name": "Copilot brain",
+          "detail": "GPT-4o mini agents prioritize work orders"
+        },
+        {
+          "name": "Service cloud",
+          "detail": "n8n + ServiceNow automate dispatch + reporting"
+        }
+      ]
+    },
+    {
+      "type": "metrics",
+      "title": "Pilot lift",
+      "data_points": [
+        {"label": "MTTR drop", "value": "-32%", "detail": "pre- vs post-pilot"},
+        {"label": "Energy savings", "value": "18%", "detail": "3 buildings"},
+        {"label": "Ticket auto-resolve", "value": "41%", "detail": "AI agents"}
+      ],
+      "quote": "\"We can finally predict chiller failures 2 days out.\" — Facilities Lead"
+    },
+    {
+      "type": "timeline",
+      "title": "Next 90-day plan",
+      "milestones": [
+        {"label": "Sprint 1", "detail": "Retrofit sensors for library + labs"},
+        {"label": "Sprint 2", "detail": "Stitch sustainability dashboard"},
+        {"label": "Sprint 3", "detail": "AI ops runbook & rollout"}
+      ]
+    },
+    {
+      "type": "cta",
+      "title": "Call to action",
+      "bullets": [
+        "Approve budget for 25 new sensor clusters",
+        "Nominate 1 champion per faculty",
+        "Lock cross-function war room cadence"
+      ],
+      "footer": "Contact: aiot@campus.example"
+    }
+  ]
+}
